@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AEGIS-TJ1 Advanced Jet Engine FADEC Command Center Dashboard">
+    <title>AEGIS-TJ1 | FADEC Engineering Console</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebarNav">
+        <div class="sidebar-brand">
+            <svg viewBox="0 0 24 24" class="brand-logo">
+                <polygon points="12,2 2,22 22,22" fill="none" stroke="#ffffff" stroke-width="2"/>
+                <circle cx="12" cy="14" r="4" fill="#ffffff" opacity="0.5"/>
+            </svg>
+        </div>
+        <div class="sidebar-menu">
+            <button class="menu-item active" id="menuDash" title="Control & Diagnostics" onclick="switchTab('control')">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            </button>
+            <button class="menu-item" id="menuEngine" title="Brayton Cycle & EKF" onclick="switchTab('ekf')">
+                <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H7M19 12H5M17 19H7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+            <button class="menu-item" id="menuHealth" title="Cyber Security & ACC" onclick="switchTab('cyber')">
+                <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="main-content">
+        <!-- Header Banner -->
+        <header class="dashboard-header">
+            <div class="header-title">
+                <h1>AEGIS-TJ1 ENGINEERING CONSOLE</h1>
+                <p class="subtitle">STANDALONE SIL SIMULATION ENVIRONMENT & REAL-TIME OBSERVER</p>
+            </div>
+            <div class="system-status">
+                <div class="status-indicator">
+                    <span class="status-dot red" id="statusDot"></span>
+                    <span class="status-text" id="statusText">STANDBY / SHUTDOWN</span>
+                </div>
+                <div class="clock-display" id="clockDisplay">00:00:00Z</div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs Bar -->
+        <div class="tabs-header">
+            <button class="tab-btn active" id="tabBtn-control" onclick="switchTab('control')">CONTROL & DIAGNOSTICS</button>
+            <button class="tab-btn" id="tabBtn-ekf" onclick="switchTab('ekf')">THERMODYNAMICS & EKF</button>
+            <button class="tab-btn" id="tabBtn-cyber" onclick="switchTab('cyber')">CYBER & ACTUATORS</button>
+            <button class="tab-btn" id="tabBtn-compliance" onclick="switchTab('compliance')">DO-178C COMPLIANCE</button>
+        </div>
+
+        <!-- TAB 1: CONTROL & DIAGNOSTICS -->
+        <div id="tab-control" class="tab-content active">
+            <!-- Flight Timeline & State Chronology -->
+            <div class="card timeline-card" style="margin-bottom: 20px;">
+                <h2>FLIGHT TIMELINE & STATE CHRONOLOGY</h2>
+                <div class="timeline-container">
+                    <div class="timeline-slider-wrapper">
+                        <input type="range" id="timelineSlider" min="0" max="2500" value="0" class="timeline-slider" disabled>
+                        <div class="timeline-ticks" id="timelineTicks">
+                            <!-- Timestamps will go here -->
+                        </div>
+                        <div class="timeline-spans" id="timelineSpans">
+                            <!-- State window spans will go here (Fault, Limits, EKF) -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Left: Engine Controls & Gauges -->
+                <div class="grid-col span-8">
+                    <div class="card">
+                        <h2>ENGINE CORE GAUGES</h2>
+                        <div class="gauges-grid">
+                            <div class="gauge-box">
+                                <div class="gauge-container" id="rpmGauge">
+                                    <div class="gauge-value" id="valRPM">0.0</div>
+                                    <div class="gauge-label">N1 SPEED (%)</div>
+                                </div>
+                            </div>
+                            <div class="gauge-box">
+                                <div class="gauge-container" id="rpmGauge2">
+                                    <div class="gauge-value" id="valRPM2">0.0</div>
+                                    <div class="gauge-label">N2 SPEED (%)</div>
+                                </div>
+                            </div>
+                            <div class="gauge-box">
+                                <div class="gauge-container" id="egtGauge">
+                                    <div class="gauge-value" id="valEGT">288</div>
+                                    <div class="gauge-label">EGT (K)</div>
+                                </div>
+                            </div>
+                            <div class="gauge-box">
+                                <div class="gauge-container" id="thrustGauge">
+                                    <div class="gauge-value" id="valThrust">0</div>
+                                    <div class="gauge-label">THRUST (N)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px;">
+                        <h2>BUILT-IN SELF TESTS (BIST / DIAGNOSTICS)</h2>
+                        <div class="diag-grid">
+                            <div class="diag-item">
+                                <div class="diag-label">POST MARCH RAM</div>
+                                <div class="diag-status ok" id="diagRam">OK</div>
+                            </div>
+                            <div class="diag-item">
+                                <div class="diag-label">POST FLASH CRC</div>
+                                <div class="diag-status ok" id="diagFlash">OK</div>
+                            </div>
+                            <div class="diag-item">
+                                <div class="diag-label">CST ALU COMPUTE</div>
+                                <div class="diag-status ok" id="diagAlu">OK</div>
+                            </div>
+                            <div class="diag-item">
+                                <div class="diag-label">CST STACK DEPTH</div>
+                                <div class="diag-status ok" id="diagStack">OK</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px;">
+                        <h2>MPU SPATIAL MEMORY PARTITIONS</h2>
+                        <div class="mpu-grid">
+                            <div class="mpu-box active" id="mpuControl">
+                                <div class="mpu-name">CONTROL PARTITION</div>
+                                <div class="mpu-range">0x0000_0000 - 0x0003_FFFF</div>
+                                <div class="mpu-policy">EXECUTE: RWX | STATE: ACTIVE</div>
+                            </div>
+                            <div class="mpu-box" id="mpuSafety">
+                                <div class="mpu-name">SAFETY PARTITION</div>
+                                <div class="mpu-range">0x0004_0000 - 0x0007_FFFF</div>
+                                <div class="mpu-policy" style="color: var(--accent-green);">EXECUTE: READ | STATE: STANDBY</div>
+                            </div>
+                            <div class="mpu-box" id="mpuAdvisory">
+                                <div class="mpu-name">ADVISORY PARTITION</div>
+                                <div class="mpu-range">0x0008_0000 - 0x000B_FFFF</div>
+                                <div class="mpu-policy" style="color: var(--accent-amber);">EXECUTE: READ | STATE: BOUNDED</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Controls & CCDL -->
+                <div class="grid-col span-4">
+                    <div class="card">
+                        <h2>FLIGHT CONTROLS</h2>
+                        <div class="controls-container">
+                            <div class="control-group">
+                                <label for="throttleSlider">THROTTLE (PLA): <span id="throttleVal">0%</span></label>
+                                <input type="range" id="throttleSlider" min="0" max="100" value="0" class="control-slider">
+                            </div>
+                            <div class="control-row">
+                                <div class="control-group">
+                                    <label for="altitudeInput">ALTITUDE (FT)</label>
+                                    <input type="number" id="altitudeInput" min="0" max="50000" value="0" step="1000">
+                                </div>
+                                <div class="control-group">
+                                    <label for="machInput">FLIGHT MACH</label>
+                                    <input type="number" id="machInput" min="0" max="1.6" value="0.0" step="0.1">
+                                </div>
+                            </div>
+                            <div class="button-group">
+                                <button id="btnStart" class="btn btn-green">IGNITION</button>
+                                <button id="btnStop" class="btn btn-red">CUTOFF</button>
+                                <button id="btnReset" class="btn btn-blue">RESET</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mission Control & Replay Panel -->
+                    <div class="card" style="margin-top: 20px;">
+                        <h2>MISSION CONTROL & REPLAY</h2>
+                        <div class="controls-container">
+                            <div class="control-group">
+                                <label for="scenarioSelect">MISSION PROFILE</label>
+                                <select id="scenarioSelect" class="control-select">
+                                    <option value="">-- MANUAL FLIGHT MODE --</option>
+                                    <!-- Scenarios loaded dynamically -->
+                                </select>
+                            </div>
+                            <div class="button-group" style="display: flex; gap: 8px;">
+                                <button id="btnPlayScenario" class="btn btn-blue" style="flex: 1;" disabled>PLAY</button>
+                                <button id="btnStopScenario" class="btn btn-red" style="flex: 1;" disabled>STOP</button>
+                            </div>
+                            <div class="control-row" style="display: flex; gap: 8px;">
+                                <button id="btnExportLog" class="btn btn-blue" style="flex: 1;">EXPORT LOG</button>
+                                <label class="btn btn-blue" style="flex: 1; text-align: center; display: flex; align-items: center; justify-content: center; margin: 0; cursor: pointer;">
+                                    IMPORT LOG
+                                    <input type="file" id="btnImportLog" accept=".json" style="display: none;">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Golden Reference Verification report card -->
+                    <div class="card" id="validationCard" style="margin-top: 20px; display: none;">
+                        <h2>GOLDEN REFERENCE VALIDATION</h2>
+                        <div class="val-grid">
+                            <div class="val-summary-row">
+                                <span class="val-summary-label">REGRESSION SCORE:</span>
+                                <span class="val-summary-value" id="valScore">-</span>
+                            </div>
+                            <div class="val-summary-row">
+                                <span class="val-summary-label">VERDICT:</span>
+                                <span class="val-summary-value" id="valVerdict">-</span>
+                            </div>
+                            <div class="val-summary-row">
+                                <span class="val-summary-label">EVENTS MATCHED:</span>
+                                <span class="val-summary-value" id="valEvents">-</span>
+                            </div>
+                            <div class="val-table-container" style="margin-top: 10px;">
+                                <table class="val-table" id="valSignalsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>SIGNAL</th>
+                                            <th>SIMILARITY</th>
+                                            <th>MAX ERROR</th>
+                                            <th>VERDICT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Validation signal details -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px;">
+                        <h2>CROSS-CHANNEL DATA LINK (CCDL)</h2>
+                        <div class="ccdl-grid">
+                            <div class="ccdl-box active" id="ccdlA">
+                                <div class="ccdl-title" style="color: var(--accent-green);">CHANNEL A (PRI)</div>
+                                <div class="ccdl-stat" id="ccdlAStatus">STATE: ACTIVE</div>
+                                <div class="ccdl-stat" id="ccdlAHealth">HEALTH: 100%</div>
+                                <div class="ccdl-stat" id="ccdlAHb">HB PACKETS: 0</div>
+                            </div>
+                            <div class="ccdl-box" id="ccdlB">
+                                <div class="ccdl-title" style="color: var(--accent-amber);">CHANNEL B (STBY)</div>
+                                <div class="ccdl-stat" id="ccdlBStatus">STATE: SYNCHRONIZED</div>
+                                <div class="ccdl-stat" id="ccdlBHealth">HEALTH: 100%</div>
+                                <div class="ccdl-stat" id="ccdlBHb">HB PACKETS: 0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: THERMODYNAMICS & EKF -->
+        <div id="tab-ekf" class="tab-content">
+            <div class="dashboard-grid">
+                <!-- Cycle Diagrams -->
+                <div class="grid-col span-7">
+                    <div class="card">
+                        <h2>BRAYTON THERMODYNAMIC DIAGRAMS</h2>
+                        <div class="charts-row">
+                            <div class="chart-container">
+                                <canvas id="tsChart"></canvas>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="pvChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px;">
+                        <h2>COMPRESSOR ENVELOPE MAP</h2>
+                        <div class="chart-container map-chart">
+                            <canvas id="compressorMapChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EKF State Tracking -->
+                <div class="grid-col span-5">
+                    <div class="card">
+                        <h2>EKF STATE OBSERVER TRACKING</h2>
+                        <div class="chart-container ekf-chart">
+                            <canvas id="ekfSpeedChart"></canvas>
+                        </div>
+                        <div class="chart-container ekf-chart" style="margin-top: 16px;">
+                            <canvas id="ekfTempChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: CYBER & ACTUATORS -->
+        <div id="tab-cyber" class="tab-content">
+            <div class="dashboard-grid">
+                <!-- Left: Cyber Watermarking & Clearances -->
+                <div class="grid-col span-8">
+                    <div class="card">
+                        <h2>CYBER-PHYSICAL WATERMARK CORRELATION</h2>
+                        <div class="chart-container watermark-chart">
+                            <canvas id="watermarkChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px;">
+                        <h2>ACTIVE CLEARANCE CONTROL (ACC)</h2>
+                        <div class="diag-grid">
+                            <div class="diag-item">
+                                <div class="diag-label">BLADE GAP (ACC)</div>
+                                <div class="diag-status ok" id="valGap" style="color: var(--accent-blue);">1.500 mm</div>
+                            </div>
+                            <div class="diag-item">
+                                <div class="diag-label">ROTOR TEMPERATURE</div>
+                                <div class="diag-status ok" id="valRotorTemp" style="color: var(--accent-amber);">288 K</div>
+                            </div>
+                            <div class="diag-item">
+                                <div class="diag-label">CASING TEMPERATURE</div>
+                                <div class="diag-status ok" id="valCasingTemp" style="color: var(--accent-amber);">288 K</div>
+                            </div>
+                            <div class="diag-item">
+                                <div class="diag-label">ACC COOLING VALVE</div>
+                                <div class="diag-status ok" id="valAccValve" style="color: var(--accent-green);">0.0 %</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px;">
+                        <h2>TURBINE BLADE CREEP GOVERNOR</h2>
+                        <div class="wear-box">
+                            <div class="wear-item">
+                                <div class="wear-label">
+                                    <span>LARSON-MILLER CREEP DEGRADATION RATE</span>
+                                    <span id="txtCreepRate">0.00000000 / hr</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill blue" id="barCreepRate" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="wear-item">
+                                <div class="wear-label">
+                                    <span>ACCUMULATED STRUCTURAL CREEP DAMAGE</span>
+                                    <span id="txtCreepDamage">0.000000 / 1.000</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill amber" id="barCreepDamage" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Test Rig Injectors & Logs -->
+                <div class="grid-col span-4">
+                    <div class="card">
+                        <h2>TEST RIG FAULT INJECTORS</h2>
+                        <div class="controls-container">
+                            <button id="btnInjectCyber" class="btn btn-red">INJECT REPLAY ATTACK</button>
+                            <button id="btnInjectSensor" class="btn btn-red">INJECT SPEED FAULT (FDIR)</button>
+                            <button id="btnInjectMpu" class="btn btn-red">INJECT MPU VIOLATION</button>
+                        </div>
+                    </div>
+
+                    <div class="card" style="margin-top: 20px;">
+                        <h2>NEUROMORPHIC HEALTH ANALYTICS</h2>
+                        <div class="radar-container" style="height: 180px;">
+                            <canvas id="healthRadarChart"></canvas>
+                        </div>
+                        <div class="metrics-row" style="margin-top: 10px;">
+                            <div class="rul-box">
+                                <div class="rul-value" id="valRUL">3,000 hrs</div>
+                                <div class="rul-label">ESTIMATED RUL (REMAINING USEFUL LIFE)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: DO-178C COMPLIANCE & VERIFICATION -->
+        <div id="tab-compliance" class="tab-content">
+            <div class="dashboard-grid">
+                <!-- Left: MC/DC Structural Coverage Ring & Module Table -->
+                <div class="grid-col span-6">
+                    <div class="card" style="height: 100%;">
+                        <h2>DO-178C STRUCTURAL COVERAGE AUDIT (MC/DC)</h2>
+                        <div style="display: flex; align-items: center; justify-content: space-around; margin: 20px 0;">
+                            <div class="compliance-ring-container">
+                                <div class="compliance-ring" id="mcdcProgressRing">
+                                    <span id="mcdcPercentText">0%</span>
+                                </div>
+                                <div style="text-align: center; margin-top: 10px; font-weight: bold; font-size: 11px;">OVERALL MC/DC</div>
+                            </div>
+                            <div style="flex-grow: 1; max-width: 250px; text-align: center;">
+                                <button id="btnRunCompliance" class="btn btn-blue" style="width: 100%; padding: 12px; font-size: 11px;">RUN CERTIFICATION SUITE</button>
+                                <div style="margin-top: 8px; font-size: 10px; color: #7f8c8d;" id="txtComplianceStatus">DO-330 Qualified Toolset: LDRA</div>
+                            </div>
+                        </div>
+                        <table class="compliance-table" style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; color: var(--text-color);">
+                            <thead>
+                                <tr style="border-bottom: 2px solid var(--border-color); text-align: left;">
+                                    <th style="padding: 8px;">C Module / Component</th>
+                                    <th style="padding: 8px; text-align: center;">Statement</th>
+                                    <th style="padding: 8px; text-align: center;">Branch</th>
+                                    <th style="padding: 8px; text-align: center;">MC/DC</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 8px; font-weight: bold;">fadec_control.cpp</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-ctrl-stmt">0%</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-ctrl-branch">0%</td>
+                                    <td style="padding: 8px; text-align: center; font-weight: bold;" id="cov-ctrl-mcdc">0%</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 8px; font-weight: bold;">fdir_sensor.c</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-fdir-stmt">0%</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-fdir-branch">0%</td>
+                                    <td style="padding: 8px; text-align: center; font-weight: bold;" id="cov-fdir-mcdc">0%</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 8px; font-weight: bold;">dual_channel.c</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-dual-stmt">0%</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-dual-branch">0%</td>
+                                    <td style="padding: 8px; text-align: center; font-weight: bold;" id="cov-dual-mcdc">0%</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 8px; font-weight: bold;">cyber_watermark.c</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-wm-stmt">0%</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-wm-branch">0%</td>
+                                    <td style="padding: 8px; text-align: center; font-weight: bold;" id="cov-wm-mcdc">0%</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <td style="padding: 8px; font-weight: bold;">safety_monitor.cpp</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-sf-stmt">0%</td>
+                                    <td style="padding: 8px; text-align: center;" id="cov-sf-branch">0%</td>
+                                    <td style="padding: 8px; text-align: center; font-weight: bold;" id="cov-sf-mcdc">0%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right: Real-time WCET Analysis & CCDL Latency/Jitter -->
+                <div class="grid-col span-6">
+                    <div class="card" style="margin-bottom: 20px;">
+                        <h2>REAL-TIME WORST-CASE EXECUTION TIME (WCET)</h2>
+                        <div class="chart-container" style="height: 180px;">
+                            <canvas id="wcetChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>CCDL SYNC & ARINC-429 JITTER ANALYSIS</h2>
+                        <div class="chart-container" style="height: 180px;">
+                            <canvas id="ccdlChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logging Terminal (Persistent) -->
+        <div class="card log-card" style="margin-top: 20px;">
+            <h2>FADEC SYSTEM LOG</h2>
+            <div class="syslog-container" id="systemLog">
+                <div class="log-entry info">[00:00:00] FADEC SIL Engineering Console Boot Complete.</div>
+                <div class="log-entry info">[00:00:00] Waiting for simulation engine ignition sequence...</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <span id="txtTelemetryTime">SIMULATED TIME: 0.0s</span>
+            <span id="txtFps">UI REFRESH RATE: 30 FPS</span>
+            <span>AEGIS-TF1 FADEC PROPRIETARY TECHNICAL DATA - FOR SIL TESTING ONLY</span>
+        </footer>
+    </main>
+
+    <!-- JS Files -->
+    <script src="charts/brayton_chart.js"></script>
+    <script src="charts/compressor_map_chart.js"></script>
+    <script src="charts/health_monitor_chart.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

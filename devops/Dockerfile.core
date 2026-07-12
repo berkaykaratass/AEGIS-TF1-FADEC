@@ -1,0 +1,13 @@
+# Dockerfile for FADEC C Core Spool
+FROM gcc:latest
+
+WORKDIR /app
+
+# Install static analysis tools
+RUN apt-get update && apt-get install -y cppcheck gnat && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+RUN make core
+
+CMD ["./fadec_core"]

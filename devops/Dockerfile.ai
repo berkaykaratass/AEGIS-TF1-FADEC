@@ -1,0 +1,19 @@
+# Dockerfile for FADEC AI & Digital Twin REST API
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY ai/requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Run training to ensure weights and baselines exist
+RUN PYTHONPATH=. python3 ai/training/train_surge_rl.py
+RUN PYTHONPATH=. python3 ai/training/train_anomaly.py
+RUN PYTHONPATH=. python3 ai/inference/onnx_exporter.py
+RUN PYTHONPATH=. python3 ai/inference/c_inference_bridge.py
+
+EXPOSE 8000
+
+CMD ["uvicorn", "simulation.digital_twin.twin_api:app", "--host", "0.0.0.0", "--port", "8000"]

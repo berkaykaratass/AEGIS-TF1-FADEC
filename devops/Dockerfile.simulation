@@ -1,0 +1,12 @@
+# Dockerfile for serving Web Dashboard simulation visualization
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY . .
+
+WORKDIR /app/simulation/visualization
+
+EXPOSE 8080
+
+CMD ["python", "-m", "http.server", "8080"]

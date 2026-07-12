@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  fadec-core:
+    build:
+      context: ..
+      dockerfile: devops/Dockerfile.core
+    container_name: fadec_core_container
+
+  fadec-ai:
+    build:
+      context: ..
+      dockerfile: devops/Dockerfile.ai
+    container_name: fadec_ai_container
+    ports:
+      - "8000:8000"
+
+  fadec-sim:
+    build:
+      context: ..
+      dockerfile: devops/Dockerfile.simulation
+    container_name: fadec_sim_container
+    ports:
+      - "8080:8080"

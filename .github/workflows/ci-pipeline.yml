@@ -1,0 +1,67 @@
+name: AEGIS-TJ1 CI Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-core:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck gnat-12 || sudo apt-get install -y cppcheck gnat || sudo apt-get install -y cppcheck
+        
+    - name: C Static Analysis (MISRA C compliance check)
+      run: |
+        cppcheck --enable=all core/src/
+        
+    - name: Compile FADEC Spool
+      run: |
+        make core
+        
+    - name: Run Safety Spool execution
+      run: |
+        ./fadec_core
+
+  build-ai-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-path: '3.11'
+        
+    - name: Install python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r ai/requirements.txt
+        
+    - name: Compile FADEC Shared Library
+      run: |
+        make lib
+        
+    - name: Generate synthetic datasets
+      run: |
+        python3 -c "import os, csv, numpy as np; os.makedirs('ai/training/datasets', exist_ok=True); writer = csv.writer(open('ai/training/datasets/compressor_map_data.csv', 'w')); writer.writerow(['N_corrected', 'm_dot_corrected', 'pressure_ratio', 'efficiency', 'is_surge_line']); writer.writerows([[80.0, 11.0, 6.8, 0.82, 1]] * 200); writer = csv.writer(open('ai/training/datasets/egt_vibration_data.csv', 'w')); writer.writerow(['timestamp', 'egt_kelvin', 'n1_rpm', 'vibration_g', 'p3_bar', 'fuel_flow_kgs', 'is_anomaly']); writer.writerows([[0.0, 650.0, 15000.0, 0.8, 1.013, 0.05, 0]] * 500); writer = csv.writer(open('ai/training/datasets/flight_envelope_data.csv', 'w')); writer.writerow(['altitude_ft', 'mach', 'T_amb_K', 'P_amb_Pa', 'max_thrust_N', 'min_thrust_N']); writer.writerows([[0.0, 0.0, 288.15, 101325.0, 45000.0, 5000.0]] * 100)"
+
+    - name: Train Models
+      run: |
+        PYTHONPATH=. python3 ai/training/train_surge_rl.py
+        PYTHONPATH=. python3 ai/training/train_anomaly.py
+        
+    - name: Export weights to C/JSON
+      run: |
+        PYTHONPATH=. python3 ai/inference/onnx_exporter.py
+        PYTHONPATH=. python3 ai/inference/c_inference_bridge.py
+        
+    - name: Run Test Suite
+      run: |
+        PYTHONPATH=. python3 -m pytest tests/
